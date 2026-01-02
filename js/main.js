@@ -15,30 +15,43 @@ const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
 const hintEl = document.getElementById('hintText');
 const playBtn = document.getElementById('playAnim');
+const mobileToast = document.getElementById('mobileToast');
 
 const loaderOverlay = document.getElementById('loaderOverlay');
 const progressFill = document.getElementById('progressFill');
 const progressPercent = document.getElementById('progressPercent');
 
-if (hintEl) {
-  hintEl.innerHTML = isMobile
-    ? 'Tap the button to play animation'
-    : 'Press <b>D</b> to play animation';
-}
+/* =========================
+   INITIAL UI STATE (HIDE ALL)
+========================= */
+
+// During loading: hide everything except loader
+if (hintEl) hintEl.style.display = 'none';
+if (playBtn) playBtn.style.display = 'none';
 
 /* =========================
    LOADER HELPERS
 ========================= */
 
 function updateProgress(percent) {
-  if (progressFill) progressFill.style.width = percent + '%';
-  if (progressPercent) progressPercent.textContent = percent + '%';
+  const clamped = Math.min(100, percent);
+  if (progressFill) progressFill.style.width = clamped + '%';
+  if (progressPercent) progressPercent.textContent = clamped + '%';
 }
 
 function hideLoader() {
   if (!loaderOverlay) return;
   loaderOverlay.style.opacity = '0';
   setTimeout(() => loaderOverlay.remove(), 400);
+}
+
+function showMobileToast() {
+  if (!isMobile || !mobileToast) return;
+
+  mobileToast.classList.add('visible');
+  setTimeout(() => {
+    mobileToast.classList.remove('visible');
+  }, 2200);
 }
 
 /* =========================
@@ -164,13 +177,24 @@ loader.load(
 
     updateProgress(100);
     hideLoader();
+
+    if (!isMobile && hintEl) {
+      hintEl.innerHTML = 'Press <b>D</b> to play animation';
+      hintEl.style.display = 'block';
+    }
+
+    if (isMobile) {
+      showMobileToast();
+      setTimeout(() => {
+        if (playBtn) playBtn.style.display = 'block';
+      }, 2200);
+    }
   },
 
   // onProgress
   (xhr) => {
     if (xhr.total) {
-      const percent = Math.floor((xhr.loaded / xhr.total) * 100);
-      updateProgress(percent);
+      updateProgress(Math.floor((xhr.loaded / xhr.total) * 100));
     }
   },
 
