@@ -4,6 +4,20 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 
 /* =========================
+   DEVICE CHECK
+========================= */
+
+const hintEl = document.getElementById('hintText');
+
+const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+
+if (hintEl) {
+  hintEl.innerHTML = isMobile
+    ? 'Tap the button to play animation'
+    : 'Press <b>D</b> to play animation';
+}
+
+/* =========================
    BASIC SETUP
 ========================= */
 
@@ -20,7 +34,9 @@ camera.position.set(0, 2.2, 5);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setPixelRatio(
+  Math.min(window.devicePixelRatio, isMobile ? 1.25 : 2)
+);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 
 renderer.shadowMap.enabled = true;
@@ -32,7 +48,7 @@ renderer.toneMappingExposure = 1.4;
 document.body.appendChild(renderer.domElement);
 
 /* =========================
-   ENVIRONMENT (FIX #2)
+   ENVIRONMENT
 ========================= */
 
 const pmremGenerator = new THREE.PMREMGenerator(renderer);
@@ -41,30 +57,18 @@ scene.environment = pmremGenerator
   .texture;
 
 /* =========================
-   LIGHTING (3-POINT)
+   LIGHTING
 ========================= */
 
-// Hemisphere (base ambient)
-const hemiLight = new THREE.HemisphereLight(0xffffff, 0x222222, 0.5);
-hemiLight.position.set(0, 20, 0);
-scene.add(hemiLight);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x222222, 0.5));
 
-// Key Light
 const keyLight = new THREE.DirectionalLight(0xffffff, 1.4);
 keyLight.position.set(4, 6, 4);
 keyLight.castShadow = true;
-keyLight.shadow.mapSize.set(1024, 1024);
 scene.add(keyLight);
 
-// Fill Light
-const fillLight = new THREE.DirectionalLight(0xffffff, 0.6);
-fillLight.position.set(-4, 3, 2);
-scene.add(fillLight);
-
-// Rim / Back Light
-const rimLight = new THREE.DirectionalLight(0xffffff, 0.8);
-rimLight.position.set(0, 5, -5);
-scene.add(rimLight);
+scene.add(new THREE.DirectionalLight(0xffffff, 0.6).position.set(-4, 3, 2));
+scene.add(new THREE.DirectionalLight(0xffffff, 0.8).position.set(0, 5, -5));
 
 /* =========================
    FLOOR
@@ -78,7 +82,6 @@ const floor = new THREE.Mesh(
     metalness: 0.1
   })
 );
-
 floor.rotation.x = -Math.PI / 2;
 floor.receiveShadow = true;
 scene.add(floor);
@@ -90,6 +93,11 @@ scene.add(floor);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.target.set(0, 1.1, 0);
+
+if (isMobile) {
+  controls.enablePan = false;
+  controls.rotateSpeed = 0.6;
+}
 
 /* =========================
    MODEL & ANIMATIONS
@@ -108,12 +116,9 @@ loader.load(
   (gltf) => {
     const model = gltf.scene;
 
-    model.traverse((obj) => {
-      if (obj.isMesh) {
-        obj.castShadow = true;
-        obj.receiveShadow = true;
-      }
-    });
+    if (isMobile) {
+      model.scale.set(0.85, 0.85, 0.85);
+    }
 
     scene.add(model);
 
@@ -124,9 +129,6 @@ loader.load(
     });
 
     playAction('idle', 0.3);
-
-    const loaderEl = document.getElementById('loader');
-    if (loaderEl) loaderEl.style.display = 'none';
   },
   undefined,
   (error) => {
@@ -149,11 +151,24 @@ function playAction(name, fade = 0.4) {
 }
 
 /* =========================
-   INPUT
+   DESKTOP INPUT
 ========================= */
 
 window.addEventListener('keydown', (e) => {
-  if (e.code === 'KeyD' && !isPlaying && actions['dance']) {
+  if (e.code === 'KeyD') triggerDance();
+});
+
+/* =========================
+   MOBILE BUTTON
+========================= */
+
+const playBtn = document.getElementById('playAnim');
+if (playBtn) {
+  playBtn.addEventListener('click', triggerDance);
+}
+
+function triggerDance() {
+  if (!isPlaying && actions['dance']) {
     isPlaying = true;
 
     const dance = actions['dance'];
@@ -167,7 +182,7 @@ window.addEventListener('keydown', (e) => {
       isPlaying = false;
     }, dance.getClip().duration * 1000);
   }
-});
+}
 
 /* =========================
    RENDER LOOP
@@ -194,3 +209,4 @@ window.addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
+

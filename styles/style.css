@@ -29,3 +29,26 @@ canvas:active {
   border-radius: 6px;
   user-select: none;
 }
+
+/* Mobile animation button */
+.mobile-btn {
+  position: absolute;
+  bottom: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 20px;
+  font-size: 16px;
+  border: none;
+  border-radius: 8px;
+  background: #1e1e1e;
+  color: #fff;
+  opacity: 0.9;
+  display: none;
+}
+
+/* Show button only on mobile */
+@media (max-width: 768px) {
+  .mobile-btn {
+    display: block;
+  }
+}
