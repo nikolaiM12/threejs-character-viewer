@@ -76,10 +76,6 @@ canvas:active {
 
 
 @media (max-width: 768px) {
-  .mobile-btn {
-    display: block;
-  }
-
   .mobile-toast.visible {
     opacity: 1;
   }
