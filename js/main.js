@@ -7,14 +7,38 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
    DEVICE CHECK
 ========================= */
 
-const hintEl = document.getElementById('hintText');
-
 const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+
+/* =========================
+   UI ELEMENTS
+========================= */
+
+const hintEl = document.getElementById('hintText');
+const playBtn = document.getElementById('playAnim');
+
+const loaderOverlay = document.getElementById('loaderOverlay');
+const progressFill = document.getElementById('progressFill');
+const progressPercent = document.getElementById('progressPercent');
 
 if (hintEl) {
   hintEl.innerHTML = isMobile
     ? 'Tap the button to play animation'
     : 'Press <b>D</b> to play animation';
+}
+
+/* =========================
+   LOADER HELPERS
+========================= */
+
+function updateProgress(percent) {
+  if (progressFill) progressFill.style.width = percent + '%';
+  if (progressPercent) progressPercent.textContent = percent + '%';
+}
+
+function hideLoader() {
+  if (!loaderOverlay) return;
+  loaderOverlay.style.opacity = '0';
+  setTimeout(() => loaderOverlay.remove(), 400);
 }
 
 /* =========================
@@ -34,14 +58,10 @@ camera.position.set(0, 2.2, 5);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(
-  Math.min(window.devicePixelRatio, isMobile ? 1.25 : 2)
-);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.25 : 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.4;
 
@@ -67,8 +87,13 @@ keyLight.position.set(4, 6, 4);
 keyLight.castShadow = true;
 scene.add(keyLight);
 
-scene.add(new THREE.DirectionalLight(0xffffff, 0.6).position.set(-4, 3, 2));
-scene.add(new THREE.DirectionalLight(0xffffff, 0.8).position.set(0, 5, -5));
+const fillLight = new THREE.DirectionalLight(0xffffff, 0.6);
+fillLight.position.set(-4, 3, 2);
+scene.add(fillLight);
+
+const rimLight = new THREE.DirectionalLight(0xffffff, 0.8);
+rimLight.position.set(0, 5, -5);
+scene.add(rimLight);
 
 /* =========================
    FLOOR
@@ -113,12 +138,19 @@ let isPlaying = false;
 
 loader.load(
   'assets/character.glb',
+
+  // onLoad
   (gltf) => {
     const model = gltf.scene;
 
-    if (isMobile) {
-      model.scale.set(0.85, 0.85, 0.85);
-    }
+    if (isMobile) model.scale.set(0.85, 0.85, 0.85);
+
+    model.traverse((obj) => {
+      if (obj.isMesh) {
+        obj.castShadow = true;
+        obj.receiveShadow = true;
+      }
+    });
 
     scene.add(model);
 
@@ -129,8 +161,20 @@ loader.load(
     });
 
     playAction('idle', 0.3);
+
+    updateProgress(100);
+    hideLoader();
   },
-  undefined,
+
+  // onProgress
+  (xhr) => {
+    if (xhr.total) {
+      const percent = Math.floor((xhr.loaded / xhr.total) * 100);
+      updateProgress(percent);
+    }
+  },
+
+  // onError
   (error) => {
     console.error('GLB load error:', error);
   }
@@ -150,38 +194,32 @@ function playAction(name, fade = 0.4) {
   activeAction.reset().fadeIn(fade).play();
 }
 
+function triggerDance() {
+  if (isPlaying || !actions['dance']) return;
+
+  isPlaying = true;
+  const dance = actions['dance'];
+
+  playAction('dance', 0.5);
+  dance.setLoop(THREE.LoopOnce, 1);
+  dance.clampWhenFinished = true;
+
+  setTimeout(() => {
+    playAction('idle', 0.4);
+    isPlaying = false;
+  }, dance.getClip().duration * 1000);
+}
+
 /* =========================
-   DESKTOP INPUT
+   INPUT
 ========================= */
 
 window.addEventListener('keydown', (e) => {
   if (e.code === 'KeyD') triggerDance();
 });
 
-/* =========================
-   MOBILE BUTTON
-========================= */
-
-const playBtn = document.getElementById('playAnim');
 if (playBtn) {
   playBtn.addEventListener('click', triggerDance);
-}
-
-function triggerDance() {
-  if (!isPlaying && actions['dance']) {
-    isPlaying = true;
-
-    const dance = actions['dance'];
-    playAction('dance', 0.5);
-
-    dance.setLoop(THREE.LoopOnce, 1);
-    dance.clampWhenFinished = true;
-
-    setTimeout(() => {
-      playAction('idle', 0.4);
-      isPlaying = false;
-    }, dance.getClip().duration * 1000);
-  }
 }
 
 /* =========================
